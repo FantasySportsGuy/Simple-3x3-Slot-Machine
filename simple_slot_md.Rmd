@@ -1,8 +1,6 @@
 ---
-title: "Simple_slot_md"
-author: "Austin Boone"
-date: "5/1/2022"
-output: pdf_document
+title: "R7 Slot Machine, 1 Coin, 97.67% Payout"
+output: html_document
   
 ---
 
@@ -11,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(reactablefmtr)
 library(gt)
 library(tidyverse)
-library(scales)
+library(formattable)
 library(tinytex)
 source("simple_slot_function_file.R")#loading function file
 source("par_ff.R")
@@ -48,10 +46,7 @@ coin.pays<-data.frame(#coin.pay is a data frame of the corresponding payouts
 )
 
 coins=1#this is the amount of coins the machine has
-```
 
-
-```{r sumtable, echo=FALSE}
 #the number of hits of each pay combination is the product of the symbol factors
 hits<-as.data.frame(pay.out.factor[,1]*pay.out.factor[,2]*pay.out.factor[,3])
 #coin.out is the pay out times the number of hits for a pay combo
@@ -61,7 +56,10 @@ total.out<-sum(coin.out)
 #pay.percent is the total.out/total *100
 hits.total<-sum(hits)#total amount of hits of the slot machine
 
+```
 
+
+```{r sumtable, echo=FALSE}
 
 #creating a data frame where the first three columns are the symbols of   
 #winning combos, the next three columns are the number of the specific symbol 
@@ -127,20 +125,21 @@ cols_label(
       fns=list(
         Totals=~sum(.,na.rm=TRUE)
       ),
-      missing_text=" "
+      missing_text=" ",
+      formatter = fmt_integer
     ) %>%
   tab_source_note(
     source_note = "XX Every Symbol Except 1"
   )
-cat("\\ ")
+
 ```
 
-
-```{r initialize2, echo=FALSE}
-pay.percent<-(100*total.out)/total.in#the % payback which is the total.out
+<br>
+```{r summarytable, echo=FALSE}
+pay.percent<-(total.out)/total.in#the % payback which is the total.out
 #divided by the total.in *100
 hits.total<-sum(hits)#summation of the total number of hits
-hit.percent<-(100*hits.total)/total.in#the percent of hits of the machine
+hit.percent<-(hits.total)/total.in#the percent of hits of the machine
 
 #a data frame with 1 row, the columns being total hits, total out, total in
 #hit % and pay%
@@ -148,8 +147,8 @@ summary.table<-data.frame(
   hits.total=hits.total,
   total.out=total.out,
   total.in=total.in,
-  hit.percent=round(hit.percent,digits=2),
-  pay.percent=round(pay.percent,digits = 2)
+  hit.percent=hit.percent,
+  pay.percent=pay.percent
 )
 
 #formatting the data frame using the package gt 
@@ -174,35 +173,52 @@ summary.table%>%gt()%>%tab_options(
     Total_in="Total In",
     Hit_p="Hit %",
     Pay_p="Pay %",
+  )%>%fmt_percent(
+    columns=c(Hit_p,Pay_p)
   )
 
 ```
 
-
+<br>
 ```{r paysummary, echo=FALSE}
+#creating a data frame named pays.summary which will have the columns 
+#Max coin Pay, % of total hits, % of total out, plays per hit, and pays per hit 
+#and higher
 pays.summary<-data.frame(
-  max.coin.pays<-coin.pays,
-  percent.total.hits<-round((hits*100)/hits.total,digits=2),
-  percent.total.outs<-round((coin.out*100)/total.out,digits = 2),
-  plays.per.hit<-round(total.in/hits,digits = 0),
+  max.coin.pays<-coin.pays,#this column represents how much each winning 
+  #combination pays out
+  percent.total.hits<-(hits)/hits.total,#the percentage of a specific winning
+  #combo happening
+  percent.total.outs<-(coin.out)/total.out,#percentage of the machine pay back
+  #which comes from a specific winning combo
+  plays.per.hit<-round(total.in/hits,digits = 0),#calculating the average plays 
+  #per hit needed to get a specific winning combo
   hits<-hits
 )
 
 colnames(pays.summary)<-c("maxcoinpay","ptotalhits","ptotalout","playsperhit","hits")
+#The payouts of 1 and 2 can happen 3 different ways each, so we need to combine 
+#these in the pays.summary data frame. We group the dataframe by maxcoinpay 
+#and then sum the columns hits, ptotalhits, and ptotalout
 pays.summary<-pays.summary%>%group_by(maxcoinpay)%>%
   mutate(hitssum=sum(hits),
          percenttotalhitssum=sum(ptotalhits),
          percenttotaloutsum=sum(ptotalout))%>%ungroup()
 
-plays.per.hit<-round(total.in/pays.summary$hitssum,digits = 0)
+plays.per.hit<-round(total.in/pays.summary$hitssum,digits = 0)#plays per hit
+#is calculated by total.in divided by how many hits there are for the specific 
+#payout
 pays.summary<-cbind(pays.summary,plays.per.hit)
 pays.summary<-pays.summary[!duplicated(pays.summary$maxcoinpay),]
 
 
-
+#to calculate the p/h and higher we need to arrange the dataframe by the 
+#maxcoin pay in a descending manner and the take the cumulative sum
 pays.summary<-pays.summary%>%arrange(desc(maxcoinpay))%>%
   mutate(cumsumhits=cumsum(hitssum))
 
+#the p/h and higher is calculated by dividing the total hits of the slot by
+#the cumulative sum of the hits
 pays.summary<-pays.summary%>%mutate(payandhigher=round(total.in/cumsumhits,digits=0))
 calc=pays.summary[,c(1,6)]#will be used for another dataframe
 colnames(calc)<-c("pay","hits")
@@ -237,16 +253,23 @@ pays.summary%>%gt()%>%tab_options(
     style = "solid"
   ),
   locations = cells_body(
-    #columns = c(1:6)
-  ))
+    columns = c(1:5)
+  ))%>%fmt_percent(
+    columns=c(percenttotalhitssum,percenttotaloutsum)
+  )
+
+  
 ```
 
-
-```{r summarytable, echo=FALSE}
+<br>
+```{r tableconf, echo=FALSE}
+#Creating a data frame named table, which coins the variables 
+#handle pulls, 90% confidence factor, lower limit, and upper limit. 
+#the table is generated using the function confidence_table
 table<-confidence_table(calc,total.in,coins = coins)
 colnames(table)<-c("Handle Pulls","90% Confidence Factor","Lower Limit","Upper Limit")
 
-
+#Turning the data frame table into a gt table
 table%>%gt()%>%tab_options(
   table.border.right.style="solid",
   table.border.right.color="black",
@@ -269,24 +292,44 @@ table%>%gt()%>%tab_options(
   ),
   locations = cells_body(
     #columns = c(1:6)
-  ))
+  ))%>%fmt_percent(
+    columns=c(3,4)
+  )%>%fmt_number(
+    columns = c(2),
+    decimals = 3
+  )%>%tab_footnote(
+    footnote = "Volatility Index",
+    locations = cells_body(
+      columns = c(2),
+      rows = 2
+    )
+  )%>%
+  opt_footnote_marks(marks = c("*", "+"))
 ```
 
 
-
+<br>
 ```{r symbolsum, echo=FALSE}
+#creating a data frame called symbol.l with four columns, the first being 
+#a column named symbols whose values range from 1 to 7 and represent the slots
+#symbols. The second being R1 whose values represent how many the symbol on
+#the same row in the Symbols column are on the first real. The third being R2
+#whose values represent how many the symbol on
+#the same row in the Symbols column are on the second real. The fourth being R3
+#whose values represent how many the symbol on
+#the same row in the Symbols column are on the third real. 
 symbol_list<-c(1,2,3,4,5,6,7)
 reel.matrix<-as.data.frame(ReelMatrix())
 reel.matrix$reel.1<-as.integer(reel.matrix$reel.1)
 reel.matrix$reel.2<-as.integer(reel.matrix$reel.2)
 reel.matrix$reel.3<-as.integer(reel.matrix$reel.3)
-count_1<-as.data.frame(table(reel.matrix[,1]))
-count_2<-as.data.frame(table(reel.matrix[,2]))
-count_3<-as.data.frame(table(reel.matrix[,3]))
-count<-merge(count_1,count_2,by="Var1")
-count<-merge(count,count_3,by="Var1")
-colnames(count)<-c("Symbols","R1","R2","R3")
-count%>%gt()%>%tab_options(
+symbol.l_1<-as.data.frame(table(reel.matrix[,1]))
+symbol.l_2<-as.data.frame(table(reel.matrix[,2]))
+symbol.l_3<-as.data.frame(table(reel.matrix[,3]))
+symbol.l<-merge(symbol.l_1,symbol.l_2,by="Var1")
+symbol.l<-merge(symbol.l,symbol.l_3,by="Var1")
+colnames(symbol.l)<-c("Symbols","R1","R2","R3")
+symbol.l%>%gt()%>%tab_options(
   table.border.right.style="solid",
   table.border.right.color="black",
   table.border.right.width = "1.5",
@@ -318,4 +361,5 @@ count%>%gt()%>%tab_options(
     
     )
 ```
+
 
