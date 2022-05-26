@@ -1,6 +1,6 @@
 ---
 title: "R7 Slot Machine, 1 Coin, 97.67% Payout"
-output: rmarkdown::github_document
+output: html_document
   
 ---
 
@@ -361,6 +361,8 @@ symbol.l%>%gt()%>%tab_options(
     
     )
 ```
+
+
 
 
 
