@@ -165,3 +165,17 @@ SlotManager<-function(reel.matrix, window.matrix){
     #the user wants
   }
 }
+
+#This function creates a matrix by combining the reel vectors, each column represent a reel
+ReelMatrix<-function(){
+  #Creating a vector that is composed of two of each integer from 1-9. The vector
+  #is duplicated twice, each vector represents one reel of a slot machine.
+  set.seed(1)
+  reel.1<-sample(c(1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 6, 7))
+  set.seed(2)
+  reel.2<-sample(reel.1)
+  set.seed(3)
+  reel.3<-sample(reel.2)
+  reel.matrix<-as.matrix(cbind(reel.1, reel.2, reel.3))
+  return(reel.matrix)
+}
